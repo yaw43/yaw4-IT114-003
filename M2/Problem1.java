@@ -15,14 +15,21 @@ public class Problem1 extends BaseClass {
         // Step 3: Add code to solve the problem (add/commit as needed)
         System.out.print("Output Array: ");
         // Start Solution Edits
-        
+            // yaw4 9/25/25 - Using loops to go through the array and then output the result
+            for(int i = 0; i < arr.length; i++)
+            {
+                if((arr[i] % 2 == 1))
+                {
+                    System.out.print(arr[i] + ", ");
+                }
+            }
 
         // End Solution Edits
         System.out.println("");
         System.out.println("______________________________________");
     }
     public static void main(String[] args) {
-        final String ucid = "mt85"; // <-- change to your UCID
+        final String ucid = "yaw4"; // <-- change to your UCID
         // no edits below this line
         printHeader(ucid, 1);
         printOdds(array1,1);
