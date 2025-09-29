@@ -17,6 +17,7 @@ public class Problem3 extends BaseClass {
         // Step 3: Add code to solve the problem (add/commit as needed)
         Object[] output = new Object[arr.length];
         // Start Solution Edits
+        // yaw4 9/29/25 - Using math inbuilt functions to make values positive
         
 
         // End Solution Edits
