@@ -22,6 +22,10 @@ public class Problem2 extends BaseClass {
         // Start Solution Edits
         // Solve Challenge 1 here
         // yaw4 9/29/25 - I will use loops to go through the numbers and then assign them to total
+        for(int i = 0; i < arr.length; i++)
+        {
+            total += arr[i];
+        }
       
         // Solve Challenge 2 here
         Object modifiedTotal = "?";
@@ -34,7 +38,7 @@ public class Problem2 extends BaseClass {
     }
 
     public static void main(String[] args) {
-        final String ucid = "mt85"; // <-- change to your UCID
+        final String ucid = "yaw4"; // <-- change to your UCID
         // no edits below this line
         printHeader(ucid, 2);
         sumValues(array1, 1);
