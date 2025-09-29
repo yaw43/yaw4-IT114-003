@@ -28,6 +28,8 @@ public class Problem2 extends BaseClass {
         }
       
         // Solve Challenge 2 here
+        // yaw4 9/29/25 - I will use casting to cast, divide and then return to double
+
         Object modifiedTotal = "?";
 
         // End Solution Edits
