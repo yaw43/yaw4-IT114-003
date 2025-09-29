@@ -21,7 +21,7 @@ public class Problem2 extends BaseClass {
         double total = 0;
         // Start Solution Edits
         // Solve Challenge 1 here
-        
+        // yaw4 9/29/25 - I will use loops to go through the numbers and then assign them to total
       
         // Solve Challenge 2 here
         Object modifiedTotal = "?";
