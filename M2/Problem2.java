@@ -30,7 +30,10 @@ public class Problem2 extends BaseClass {
         // Solve Challenge 2 here
         // yaw4 9/29/25 - I will use casting to cast, divide and then return to double
 
-        Object modifiedTotal = "?";
+        int temporary = (int)(total * 100);
+        double temporary2 = ((double)temporary / 100.0);
+
+        Object modifiedTotal = temporary2;
 
         // End Solution Edits
         System.out.println("Total Raw Value: " +total);
