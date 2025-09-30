@@ -32,8 +32,12 @@ public class Problem4 extends BaseClass {
         for(int i = 0; i <arr.length; i++){
             // Start Solution Edits
             // yaw4 9/29/25 - using substring to loop though and remove all characters that are not needed
+            // using regex instead since its better
+
+            placeholderForModifiedPhrase = arr[i].replaceAll("[@#$%^&!\\s+]",""); 
             
-             // End Solution Edits
+
+            // End Solution Edits
             System.out.println(String.format("Index[%d] \"%s\" | Middle: \"%s\"",i, placeholderForModifiedPhrase, placeholderForMiddleCharacters));
         }
 
