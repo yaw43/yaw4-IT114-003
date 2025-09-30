@@ -18,8 +18,42 @@ public class Problem3 extends BaseClass {
         Object[] output = new Object[arr.length];
         // Start Solution Edits
         // yaw4 9/29/25 - Using math inbuilt functions to make values positive
-        
-
+        if(arrayNumber == 1)
+        {
+            for(int i = 0; i < arr.length; i++)
+            {
+                output[i] = Math.abs((int)arr[i]);
+            }
+        }
+        else if(arrayNumber == 2)
+        {
+            for(int i = 0; i < arr.length; i++)
+            {
+                output[i] = Math.abs((double)arr[i]);
+            }
+        }
+        else if(arrayNumber == 3)
+        {
+            for(int i = 0; i < arr.length; i++)
+            {
+                output[i] = Math.abs((float)arr[i]);
+            }
+        }
+        else if(arrayNumber == 4)
+        {
+            for(int i = 0; i < arr.length; i++)
+            {
+                output[i] = String.valueOf(arr[i]);
+            }
+        }
+        else if(arrayNumber == 5)
+        {
+            for(int i = 0; i < arr.length; i++)
+            {
+                output[i] = String.valueOf(arr[i]);
+            }
+        }
+                
         // End Solution Edits
         System.out.println("Output: ");
         printOutputWithType(output);
