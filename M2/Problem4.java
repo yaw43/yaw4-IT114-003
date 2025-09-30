@@ -34,7 +34,7 @@ public class Problem4 extends BaseClass {
             // yaw4 9/29/25 - using substring to loop though and remove all characters that are not needed
             // using regex instead since its better
 
-            placeholderForModifiedPhrase = arr[i].replaceAll("[@#$%^&!\\s+]",""); 
+            placeholderForModifiedPhrase = arr[i].replaceAll("[@#$%^&!]",""); 
             
 
             // End Solution Edits
