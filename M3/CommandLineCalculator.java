@@ -27,7 +27,7 @@ public class CommandLineCalculator extends BaseClass {
             System.out.println("Calculating result...");
             // extract the equation (format is <num1> <operator> <num2>)
 
-            // yaw4 10/14/25 
+            // yaw4 10/14/25 - using float to solve problem
             float num1 = Float.parseFloat(args[0]);
             float num2 = Float.parseFloat(args[2]);
             String operator = args[1];
