@@ -12,7 +12,7 @@ Challenge 1: Command-Line Calculator
 */
 
 public class CommandLineCalculator extends BaseClass {
-    private static String ucid = "mt85"; // <-- change to your ucid
+    private static String ucid = "yaw4"; // <-- change to your ucid
 
     public static void main(String[] args) {
         printHeader(ucid, 1, "Objective: Implement a calculator using command-line arguments.");
@@ -27,8 +27,24 @@ public class CommandLineCalculator extends BaseClass {
             System.out.println("Calculating result...");
             // extract the equation (format is <num1> <operator> <num2>)
 
+            // yaw4 10/14/25 
+            float num1 = Float.parseFloat(args[0]);
+            float num2 = Float.parseFloat(args[2]);
+            String operator = args[1];
+            float num3 = 0;
             // check if operator is addition or subtraction
-
+            switch(operator)
+            {
+                case "+":
+                    num3 = num1 + num2;
+                    System.out.println("The final answer is " + num3);
+                    break;
+                case "-":
+                    num3 = num1 - num2;
+                    System.out.println("The final answer is " + num3);
+                    break;
+            }
+            //System.out.println("The final answer is " + num3);
             // check the type of each number and choose appropriate parsing
 
             // generate the equation result (Important: ensure decimals display as the
