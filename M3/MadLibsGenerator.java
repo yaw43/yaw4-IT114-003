@@ -37,6 +37,7 @@ public class MadLibsGenerator extends BaseClass {
         // Start edits
 
         // load a random story file
+        int randomStoryNum = (int)(Math.random() * (5 - 1 + 1) + 1);
 
         // parse the story lines
 
