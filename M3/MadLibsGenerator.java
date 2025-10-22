@@ -35,16 +35,15 @@ public class MadLibsGenerator extends BaseClass {
         }
         List<String> lines = new ArrayList<>();
         // Start edits
+        // yaw4 10/15/25  
 
         // load a random story file
-        8int randomNum = (int)(Math.random() * (5 - 1 + 1)) + 1;
-            File storyFile = new File("M3/story1.txt");
-            System.out.println(STORIES_FOLDER + "/story" + randomNum + ".txt");
+        int randomNum = (int)(Math.random() * (5 - 1 + 1)) + 1;
+        File storyFile = new File("M3/stories/story1.txt");
+        System.out.println(STORIES_FOLDER + "/story" + randomNum + ".txt");
 
-            Scanner fileScanner = new Scanner(storyFile);
-            System.out.println(System.getProperty("user.dir"));
-            // parse the story lines
-
+        Scanner fileScanner = new Scanner(storyFile);
+        // parse the story lines
 
         // iterate through the lines
 
