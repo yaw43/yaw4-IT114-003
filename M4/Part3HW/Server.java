@@ -110,6 +110,34 @@ public class Server {
         });
     }
 
+    private synchronized void relayPM(ServerThread sender, String message, int target) {
+        // we'll temporarily use the thread id as the client identifier to
+        // show in all client's chat. This isn't good practice since it's subject to
+        // change as clients connect/disconnect (i.e., a reconnecting client likely
+        // won't get the same id)
+        // Note: any desired changes to the message must be done before this line
+        String senderString = sender == null ? "Server" : String.format("User[%s]", sender.getClientId());
+        // Note: formattedMessage must be final (or effectively final) since outside
+        // scope can't changed inside a callback function (see removeIf() below)
+        final String formattedMessage = String.format("%s: %s", senderString, message);
+        // end temp identifier
+
+        // loop over clients and send out the message; remove client if message failed
+        // to be sent
+        // Note: this uses a lambda expression for each item in the values() collection,
+        // it's one way we can safely remove items during iteration
+
+        connectedClients.values().removeIf(serverThread -> {
+            boolean failedToSend = !serverThread.sendToClient(formattedMessage);
+            if (failedToSend) {
+                System.out.println(
+                        String.format("Removing disconnected client[%s] from list", serverThread.getClientId()));
+                disconnect(serverThread);
+            }
+            return failedToSend;
+        });
+    }
+
     // start handle actions
     /**
      * Expose access to the disconnect action
@@ -136,6 +164,10 @@ public class Server {
         relay(sender,text);
     }
 
+    protected synchronized void handlePM(ServerThread sender, String text, int target) // pm yaw4 10/27/25
+    {
+        relayPM(sender,text, target);
+    }
     // end handle actions
 
     public static void main(String[] args) {

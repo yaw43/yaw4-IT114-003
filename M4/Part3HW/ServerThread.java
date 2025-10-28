@@ -215,6 +215,11 @@ public class ServerThread extends Thread {
                         server.handleFlip(this, fliptext);
                         wasCommand = true;
                         break;
+                    case "pm": // /pm yaw4 10/27/25
+                        String privateMessage = commandData[2];
+                        server.handlePM(this, privateMessage, 31);
+                        wasCommand = true;
+                        break;
                     default:
                         break;
                 }
