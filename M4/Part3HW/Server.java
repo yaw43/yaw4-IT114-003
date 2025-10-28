@@ -110,7 +110,7 @@ public class Server {
         });
     }
 
-    private synchronized void relayShuffle(ServerThread sender, String message) {
+    private synchronized void relayShuffle(ServerThread sender, String message) {   // shuffle yaw4 10/27/25
         // we'll temporarily use the thread id as the client identifier to
         // show in all client's chat. This isn't good practice since it's subject to
         // change as clients connect/disconnect (i.e., a reconnecting client likely
@@ -138,13 +138,13 @@ public class Server {
         });
     }
 
-    private synchronized void relayPM(ServerThread sender, String message, int target) {
+    private synchronized void relayPM(ServerThread sender, String message, int target) {  // pm yaw4 10/27/25
         // we'll temporarily use the thread id as the client identifier to
         // show in all client's chat. This isn't good practice since it's subject to
         // change as clients connect/disconnect (i.e., a reconnecting client likely
         // won't get the same id)
         // Note: any desired changes to the message must be done before this line
-        String senderString = sender == null ? "Server" : String.format("User[%s]", sender.getClientId());
+        String senderString = sender == null ? "Server" : String.format("PM from User[%s]: ", sender.getClientId());
         // Note: formattedMessage must be final (or effectively final) since outside
         // scope can't changed inside a callback function (see removeIf() below)
         final String formattedMessage = String.format("%s: %s", senderString, message);
@@ -197,7 +197,7 @@ public class Server {
         relayPM(sender,text, target);
     }
 
-    protected synchronized void handleShuffle(ServerThread sender, String text) // pm yaw4 10/27/25
+    protected synchronized void handleShuffle(ServerThread sender, String text) // shuffle yaw4 10/27/25
     {
         StringBuilder stngbuld = new StringBuilder(text);
         stngbuld.reverse();
