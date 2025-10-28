@@ -220,6 +220,11 @@ public class ServerThread extends Thread {
                         server.handlePM(this, privateMessage, 31);
                         wasCommand = true;
                         break;
+                    case "shuffle": // /shuffle yaw4 10/27/25
+                        String shuffleText = String.join(" ", Arrays.copyOfRange(commandData, 2, commandData.length));
+                        server.handleShuffle(this, shuffleText);
+                        wasCommand = true;
+                        break;
                     default:
                         break;
                 }
