@@ -202,6 +202,19 @@ public class ServerThread extends Thread {
                         wasCommand = true;
                         break;
                     // added more cases/breaks as needed for other commands
+                    case "flip":   // /flip yaw4 10/27/25
+                        String fliptext = "";
+                        if(Math.random() < 0.5)
+                        {
+                            fliptext = getClientId() + " flipped a coin and got heads!";
+                        }
+                        else
+                        {
+                            fliptext = getClientId() + " flipped a coin and got tails!";
+                        }
+                        server.handleFlip(this, fliptext);
+                        wasCommand = true;
+                        break;
                     default:
                         break;
                 }

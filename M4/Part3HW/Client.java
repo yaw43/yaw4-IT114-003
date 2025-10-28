@@ -121,6 +121,11 @@ public class Client {
             String[] commandData = { Constants.COMMAND_TRIGGER, "reverse", text };
             sendToServer(String.join(",", commandData));
             wasCommand = true;
+        } else if ("/flip".equalsIgnoreCase(text)) // /flip yaw4 10/27/25
+        {
+            String[] commandData = { Constants.COMMAND_TRIGGER, "flip", text };
+            sendToServer(String.join(",", commandData));
+            wasCommand = true;
         }
         return wasCommand;
     }

@@ -130,6 +130,12 @@ public class Server {
     protected synchronized void handleMessage(ServerThread sender, String text) {
         relay(sender, text);
     }
+    
+    protected synchronized void handleFlip(ServerThread sender, String text) // flip yaw4 10/27/25
+    {
+        relay(sender,text);
+    }
+
     // end handle actions
 
     public static void main(String[] args) {
