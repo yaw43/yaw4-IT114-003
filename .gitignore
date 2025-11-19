@@ -23,7 +23,7 @@ local.properties
 *.war
 *.ear
 *.nar
-hs_err_pid*
+hs_err_pid* 
 
 #############################
 ## Class Specifics
@@ -32,3 +32,8 @@ config.*
 *.log
 *.conf
 *.log*
+.DS_Store
+.vscode
+.idea
+*.log*
+sources.txt
