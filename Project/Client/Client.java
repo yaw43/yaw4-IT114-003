@@ -27,8 +27,8 @@ import Project.Common.RoomResultPayload;
 import Project.Common.TextFX;
 import Project.Common.User;
 import Project.Common.TextFX.Color;
-
 import Project.Common.Grid;
+
 
 /**
  * Demoing bi-directional communication between client and server in a
