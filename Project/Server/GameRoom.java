@@ -3,12 +3,14 @@ package Project.Server;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 import Project.Common.Constants;
 import Project.Common.LoggerUtil;
 import Project.Common.Phase;
 import Project.Common.TimedEvent;
+import Project.Common.TimerType;
 import Project.Exceptions.MissingCurrentPlayerException;
 import Project.Exceptions.NotPlayersTurnException;
 import Project.Exceptions.NotReadyException;
@@ -38,12 +40,18 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onClientAdded(ServerThread sp) {
         // sync GameRoom state to new client
-        syncCurrentPhase(sp);  // yaw4 12/10 used to sync phase,ready,turn,points to clients added
+
+        syncCurrentPhase(sp); 
+        // sync only what's necessary for the specific phase
+        // if you blindly sync everything, you'll get visual artifacts/discrepancies
         syncReadyStatus(sp);
         syncTurnStatus(sp);
-         if (currentPhase != Phase.READY) {
+        if (currentPhase != Phase.READY) {
+                                // turn/ready use the same visual process so ensure turn status is only called
+                                // outside of ready phase
             syncPlayerPoints(sp);
         }
+
     }
 
     /** {@inheritDoc} */
@@ -55,7 +63,7 @@ public class GameRoom extends BaseGameRoom {
         long removedClient = sp.getClientId();
         turnOrder.removeIf(player -> player.getClientId() == sp.getClientId());
         if (clientsInRoom.isEmpty()) {
-            resetReadyTimer(); // yaw4 12/10 used for editing turn orders and status depending on if clients leave
+            resetReadyTimer();
             resetTurnTimer();
             resetRoundTimer();
             onSessionEnd();
@@ -67,25 +75,33 @@ public class GameRoom extends BaseGameRoom {
     // timer handlers
     private void startRoundTimer() {
         roundTimer = new TimedEvent(30, () -> onRoundEnd());
-        roundTimer.setTickCallback((time) -> System.out.println("Round Time: " + time));
+        roundTimer.setTickCallback((time) -> {
+            System.out.println("Round Time: " + time);
+            sendCurrentTime(TimerType.ROUND, time);
+        });
     }
 
     private void resetRoundTimer() {
         if (roundTimer != null) {
             roundTimer.cancel();
             roundTimer = null;
+            sendCurrentTime(TimerType.ROUND, -1);
         }
     }
 
     private void startTurnTimer() {
-        turnTimer = new TimedEvent(60, () -> onTurnEnd());
-        turnTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
+        turnTimer = new TimedEvent(30, () -> onTurnEnd());
+        turnTimer.setTickCallback((time) -> {
+            System.out.println("Turn Time: " + time);
+            sendCurrentTime(TimerType.TURN, time);
+        });
     }
 
     private void resetTurnTimer() {
         if (turnTimer != null) {
             turnTimer.cancel();
             turnTimer = null;
+            sendCurrentTime(TimerType.TURN, -1);
         }
     }
     // end timer handlers
@@ -99,7 +115,7 @@ public class GameRoom extends BaseGameRoom {
         changePhase(Phase.PLACE);
 
         LoggerUtil.INSTANCE.info("onSessionStart() attack stuff");
-        currentTurnClientId = Constants.DEFAULT_CLIENT_ID; // added for phase based turn 
+        currentTurnClientId = Constants.DEFAULT_CLIENT_ID; // added for phase based turn
         setTurnOrder();
 
         round = 0;
@@ -113,7 +129,7 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onRoundStart() {
         LoggerUtil.INSTANCE.info("onRoundStart() start");
-
+        
         if(currentPhase == Phase.PLACE && round >= 1) // yaw4 12/10 checks to see if phase is place and round is 1 or higher, 
         {                                               // it then changes the phase to attack and if not it just increases round and adjusts timer/status
             resetRoundTimer();
@@ -128,8 +144,8 @@ public class GameRoom extends BaseGameRoom {
             resetTurnStatus();
             round++;
         }
-        
-        relay(null, String.format("Round %d has started", round));
+        // relay(null, String.format("Round %d has started", round));
+        sendGameEvent(String.format("Round %d has started", round));
         // startRoundTimer(); Round timers aren't needed for turns
         // if you do decide to use it, ensure it's reasonable and based on the number of
         // players
@@ -145,15 +161,16 @@ public class GameRoom extends BaseGameRoom {
         if(currentPhase == Phase.ATTACK) // yaw4 12/10 checks to see if phase is attack, it then uses round robin to select next player
         {
             LoggerUtil.INSTANCE.info("onTurnStart attack stuff");
-            try {
-                ServerThread currentPlayer = getNextPlayer();
-                relay(null, String.format("It's %s's turn", currentPlayer.getDisplayName()));
-            } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
+        try {
+            ServerThread currentPlayer = getNextPlayer();
+            // relay(null, String.format("It's %s's turn", currentPlayer.getDisplayName()));
+            sendGameEvent(String.format("It's %s's turn", currentPlayer.getDisplayName()));
+        } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
 
-                e.printStackTrace();
+            e.printStackTrace();
             }
         }
-        startTurnTimer(); 
+        startTurnTimer();
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -166,18 +183,18 @@ public class GameRoom extends BaseGameRoom {
         resetTurnTimer(); // reset timer if turn ended without the time expiring
         if(currentPhase == Phase.ATTACK) //yaw4 12/10 checks to see if phase is "ATTACK" then looks to see if round should end or do next turn
         {
-            try {
-                // optionally can use checkAllTookTurn();
+        try {
+            // optionally can use checkAllTookTurn();
                 LoggerUtil.INSTANCE.info("onTurnEnd attack stuff");
-                if (isLastPlayer()) {
-                    // if the current player is the last player in the turn order, end the round
-                    onRoundEnd();
-                } else {
-                    onTurnStart();
-                }
-            } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
+            if (isLastPlayer()) {
+                // if the current player is the last player in the turn order, end the round
+                onRoundEnd();
+            } else {
+                onTurnStart();
+            }
+        } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
 
-                e.printStackTrace();
+            e.printStackTrace();
             }
             
         }
@@ -202,7 +219,7 @@ public class GameRoom extends BaseGameRoom {
         if (round >= 3) {
             onSessionEnd();
         } else {
-          onRoundStart();
+            onRoundStart();
         }
        onRoundStart();
     }
@@ -211,8 +228,8 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
-        currentTurnClientId = Constants.DEFAULT_CLIENT_ID;
         turnOrder.clear();
+        currentTurnClientId = Constants.DEFAULT_CLIENT_ID;
         resetReadyStatus(); // yaw4 12/11, resets ready,turn status and turn timer
         resetTurnStatus(); // it then changes phase back to ready
         resetTurnTimer();
@@ -220,7 +237,7 @@ public class GameRoom extends BaseGameRoom {
         grid.reset(); // added for yaw4 resets grid on server 
 
         changePhase(Phase.READY);
-        
+
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
     // end lifecycle methods
@@ -250,7 +267,7 @@ public class GameRoom extends BaseGameRoom {
         clientsInRoom.values().forEach(serverUser -> {
             if (serverUser.getClientId() != incomingClient.getClientId()) {
                 boolean failedToSync = !incomingClient.sendPlayerPoints(serverUser.getClientId(),
-                        serverUser.getGamePoints());
+                        serverUser.getPoints());
                 if (failedToSync) {
                     LoggerUtil.INSTANCE.warning(
                             String.format("Removing disconnected %s from list", serverUser.getDisplayName()));
@@ -262,13 +279,13 @@ public class GameRoom extends BaseGameRoom {
 
     private void sendPlayerPoints(ServerThread sp) {
         clientsInRoom.values().removeIf(spInRoom -> {
-            boolean failedToSend = !spInRoom.sendPlayerPoints(sp.getClientId(), sp.getGamePoints());
+            boolean failedToSend = !spInRoom.sendPlayerPoints(sp.getClientId(), sp.getPoints());
             if (failedToSend) {
                 removeClient(spInRoom);
             }
             return failedToSend;
         });
-    } 
+    }
 
     private void syncTurnStatus(ServerThread incomingClient) {
         clientsInRoom.values().forEach(serverUser -> {
@@ -306,7 +323,7 @@ public class GameRoom extends BaseGameRoom {
      * Sets `turnOrder` to a shuffled list of players who are ready.
      */
     private void setTurnOrder() {
-       // turnOrder.clear();
+        turnOrder.clear();
         turnOrder = clientsInRoom.values().stream().filter(ServerThread::isReady).collect(Collectors.toList());
         Collections.shuffle(turnOrder);
     }
@@ -384,7 +401,10 @@ public class GameRoom extends BaseGameRoom {
                 .filter(sp -> sp.isReady() && sp.didTakeTurn())
                 .toList().size();
         if (numReady == numTookTurn) {
-            relay(null,
+            // relay(null,
+            // String.format("All players have taken their turn (%d/%d) ending the round",
+            // numTookTurn, numReady));
+            sendGameEvent(
                     String.format("All players have taken their turn (%d/%d) ending the round", numTookTurn, numReady));
             onRoundEnd();
         }
@@ -454,15 +474,15 @@ public class GameRoom extends BaseGameRoom {
                     currentUser.addGamePoints(grid.getLastShips(x, y));
                     currentUser.sendAttackShipUpdate(currentUser.getClientId(), x, y); // sends attack command to client
                     relay(null, String.format("%s hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
-                    LoggerUtil.INSTANCE.warning("ship successfully attacked and user's points now: " + currentUser.getGamePoints() + " Client ID:" + currentUser.getClientId());
+                    LoggerUtil.INSTANCE.warning("ship successfully attacked and user's points now: " + currentUser.getPoints() + " Client ID:" + currentUser.getClientId());
                 }
                 else 
                 {
                     relay(null, String.format("%s missed and hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
-                    LoggerUtil.INSTANCE.info("ship failed attack and user's points now " + currentUser.getGamePoints());
+                    LoggerUtil.INSTANCE.info("ship failed attack and user's points now " + currentUser.getPoints());
                 } // yaw4 attack ship logic to be added here
             }
-            if(currentUser.getGamePoints() >= 6)
+            if(currentUser.getPoints() >= 6)
             {
                 onSessionEnd();
                 //resetTurnTimer();
@@ -552,6 +572,14 @@ public class GameRoom extends BaseGameRoom {
             if (currentUser.didTakeTurn()) {
                 currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You have already taken your turn this round");
                 return;
+            }
+            // example points
+            int points = new Random().nextInt(4) == 3 ? 1 : 0;
+            sendGameEvent(String.format("%s %s", currentUser.getDisplayName(),
+                    points > 0 ? "gained a point" : "didn't gain a point"));
+            if (points > 0) {
+                currentUser.changePoints(points);
+                sendPlayerPoints(currentUser);
             }
             currentUser.setTookTurn(true);
             // TODO handle example text possibly or other turn related intention from client
