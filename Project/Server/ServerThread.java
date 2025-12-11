@@ -1,16 +1,22 @@
 package Project.Server;
 
 import java.net.Socket;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
-
+import Project.Common.TextFX.Color;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.CoordPayload;
+import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.PointsPayload;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomAction;
+import Project.Common.RoomResultPayload;
 import Project.Common.TextFX;
-import Project.Common.TextFX.Color;
 
 /**
  * A server-side representation of a single client
@@ -24,8 +30,10 @@ public class ServerThread extends BaseServerThread {
      * 
      * @param message
      */
+    @Override
     protected void info(String message) {
-        System.out.println(TextFX.colorize(String.format("Thread[%s]: %s", this.getClientId(), message), Color.CYAN));
+        LoggerUtil.INSTANCE
+                .info(TextFX.colorize(String.format("Thread[%s]: %s", this.getClientId(), message), Color.CYAN));
     }
 
     /**
@@ -49,6 +57,91 @@ public class ServerThread extends BaseServerThread {
     }
 
     // Start Send*() Methods
+
+    public boolean sendAttackShipUpdate(long clientId, int x, int y) // yaw4 12/11, send attack ship data to client to change client grid
+    {
+        CoordPayload cp = new CoordPayload(x, y);
+        cp.setClientId(clientId);
+        cp.setPayloadType(PayloadType.ATTACK);
+        return sendToClient(cp);
+    }
+
+    public boolean sendPlaceShipUpdate(long clientId, int x, int y) // yaw4 12/11, send place ship data to client to change client grid
+    {
+        CoordPayload cp = new CoordPayload(x, y);
+        cp.setClientId(clientId);
+        cp.setPayloadType(PayloadType.PLACE);
+        return sendToClient(cp);
+    }
+
+    public boolean sendPlayerPoints(long clientId, int points) {
+        PointsPayload rp = new PointsPayload();
+        rp.setPoints(points);
+        rp.setClientId(clientId);
+        return sendToClient(rp);
+    }
+
+    public boolean sendResetTurnStatus() {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(PayloadType.RESET_TURN);
+        return sendToClient(rp);
+    }
+
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
+        return sendTurnStatus(clientId, didTakeTurn, false);
+    }
+
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn, boolean quiet) {
+        // NOTE for now using ReadyPayload as it has the necessary properties
+        // An actual turn may include other data for your project
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(quiet ? PayloadType.SYNC_TURN : PayloadType.TURN);
+        rp.setClientId(clientId);
+        rp.setReady(didTakeTurn);
+        return sendToClient(rp);
+    }
+
+    public boolean sendCurrentPhase(Phase phase) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.PHASE);
+        p.setMessage(phase.name());
+        return sendToClient(p);
+    }
+
+    public boolean sendResetReady() {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(PayloadType.RESET_READY);
+        return sendToClient(rp);
+    }
+
+    public boolean sendReadyStatus(long clientId, boolean isReady) {
+        return sendReadyStatus(clientId, isReady, false);
+    }
+
+    /**
+     * Sync ready status of client id
+     * 
+     * @param clientId who
+     * @param isReady  ready or not
+     * @param quiet    silently mark ready
+     * @return
+     */
+    public boolean sendReadyStatus(long clientId, boolean isReady, boolean quiet) {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setClientId(clientId);
+        rp.setReady(isReady);
+        if (quiet) {
+            rp.setPayloadType(PayloadType.SYNC_READY);
+        }
+        return sendToClient(rp);
+    }
+
+    public boolean sendRooms(List<String> rooms) {
+        RoomResultPayload rrp = new RoomResultPayload();
+        rrp.setRooms(rooms);
+        return sendToClient(rrp);
+    }
+
     protected boolean sendDisconnect(long clientId) {
         Payload payload = new Payload();
         payload.setClientId(clientId);
@@ -159,10 +252,95 @@ public class ServerThread extends BaseServerThread {
             case ROOM_LEAVE:
                 currentRoom.handleJoinRoom(this, Room.LOBBY);
                 break;
+            case ROOM_LIST:
+                currentRoom.handleListRooms(this, incoming.getMessage());
+                break;
+            case READY:
+                // no data needed as the intent will be used as the trigger
+                try {
+                    // cast to GameRoom as the subclass will handle all Game logic
+                    ((GameRoom) currentRoom).handleReady(this);
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do the ready check");
+                }
+                break;
+            case TURN:
+                // no data needed as the intent will be used as the trigger
+                try {
+                    // cast to GameRoom as the subclass will handle all Game logic
+                    ((GameRoom) currentRoom).handleTurnAction(this, incoming.getMessage());
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do a turn");
+                }
+                break;
+            case PLACE:
+                try {
+                    CoordPayload cp = (CoordPayload) incoming; // yaw4 12/11, processing coordinate payload for placing and then placing ship in gameroom
+                    ((GameRoom) currentRoom).handlePlaceAction(this, cp.getX(), cp.getY());
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "placed ship on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to place ships");
+                }
+                break;
+            case ATTACK:
+                try {
+                    CoordPayload attcp = (CoordPayload) incoming; // yaw4 12/11, processing coordinate payload for attacking and then attack ship in gameroom
+                    ((GameRoom) currentRoom).handleAttackAction(this, attcp.getX(), attcp.getY());
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "attacked ship on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to attack ships");
+                }
+                break;
+            case SKIP:
+                try {
+                    Payload skippl = (Payload) incoming; // yaw4 12/11, processing skip payload for skipping
+                    ((GameRoom) currentRoom).handleSkipAction(this);
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "skipped turn on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to skip your turn");
+                }
+                break;
             default:
-                System.out.println(TextFX.colorize("Unknown payload type received", Color.RED));
+                LoggerUtil.INSTANCE.warning(TextFX.colorize("Unknown payload type received", Color.RED));
                 break;
         }
+    }
+
+    // limited user data exposer
+    protected int getGamePoints()
+    {
+        return this.user.getGamePoints();
+    }
+
+    protected void addGamePoints(int points)
+    {
+        this.user.addGamePoints(points);
+    }
+
+    protected boolean placedAllShips() // added yaw4 
+    {
+        return this.user.placedAllShips();
+    }
+
+    protected void setPlacedShip() // added yaw4
+    {
+        this.user.setPlacedShip();
+    }
+
+    protected boolean isReady() {
+        return this.user.isReady();
+    }
+
+    protected void setReady(boolean isReady) {
+        this.user.setReady(isReady);
+    }
+
+    protected boolean didTakeTurn() {
+        return this.user.didTakeTurn();
+    }
+
+    protected void setTookTurn(boolean tookTurn) {
+        this.user.setTookTurn(tookTurn);
     }
 
     @Override

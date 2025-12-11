@@ -24,7 +24,7 @@ public class Payload implements Serializable {
     /**
      * @return the clientId
      */
-    public long getClientId() {
+    public long getClientId() { //yaw4 12/10 payload type to use when creating other payloads and inherit info
         return clientId;
     }
 

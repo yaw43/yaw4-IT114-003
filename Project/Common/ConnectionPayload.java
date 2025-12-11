@@ -6,7 +6,7 @@ public class ConnectionPayload extends Payload {
     /**
      * @return the clientName
      */
-    public String getClientName() {
+    public String getClientName() { //yaw4 12/10 payload used to send info on clients name
         return clientName;
     }
 
