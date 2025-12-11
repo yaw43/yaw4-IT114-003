@@ -336,6 +336,16 @@ public class ServerThread extends BaseServerThread {
     }
 
     // limited user data exposer
+    protected int getCurrency()
+    {
+        return this.user.getCurrency();
+    }
+
+    protected void addCurrency(int currency)
+    {
+        this.user.addCurrency(currency);
+    }
+
     protected void addGamePoints(int points)
     {
         this.user.addGamePoints(points);

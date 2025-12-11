@@ -472,8 +472,10 @@ public class GameRoom extends BaseGameRoom {
               if(grid.attackShip(x,y) && grid.cellStatus(x,y) == 1) // yaw4 12/11, used to attack ship in grid when attack command
                 {
                     currentUser.addGamePoints(grid.getLastShips(x, y));
+                    currentUser.addCurrency(10);
                     currentUser.sendAttackShipUpdate(currentUser.getClientId(), x, y); // sends attack command to client
                     relay(null, String.format("%s hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
+                    relay(null, String.format("%s got 10 coins for hitting ships!", currentUser.getDisplayName()));
                     LoggerUtil.INSTANCE.warning("ship successfully attacked and user's points now: " + currentUser.getPoints() + " Client ID:" + currentUser.getClientId());
                 }
                 else 

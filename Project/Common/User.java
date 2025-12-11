@@ -10,6 +10,7 @@ public class User {
     private int placedShips = 0; 
     private int gamePoints = 0; // correct way?
     private int points = 0;
+    private int currency = 0;
 
     // protected boolean isEliminated() //yaw4 added 
    // {
@@ -20,6 +21,21 @@ public class User {
    {
         return !isReady();
    }
+
+    /**
+     * @return the points
+     */
+    public int getCurrency() {
+        return currency;
+    }
+
+    /**
+     * @param points the points to set
+     */
+    public void addCurrency(int currency) {
+        this.currency += currency;
+
+    }
 
     /**
      * @return the points
