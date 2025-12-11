@@ -7,10 +7,12 @@ import java.util.function.Consumer;
 import Project.Common.TextFX.Color;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.CoordPayload;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
+import Project.Common.PointsPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomAction;
 import Project.Common.RoomResultPayload;
@@ -55,6 +57,30 @@ public class ServerThread extends BaseServerThread {
     }
 
     // Start Send*() Methods
+
+    public boolean sendAttackShipUpdate(long clientId, int x, int y) // yaw4 12/11, send attack ship data to client to change client grid
+    {
+        CoordPayload cp = new CoordPayload(x, y);
+        cp.setClientId(clientId);
+        cp.setPayloadType(PayloadType.ATTACK);
+        return sendToClient(cp);
+    }
+
+    public boolean sendPlaceShipUpdate(long clientId, int x, int y) // yaw4 12/11, send place ship data to client to change client grid
+    {
+        CoordPayload cp = new CoordPayload(x, y);
+        cp.setClientId(clientId);
+        cp.setPayloadType(PayloadType.PLACE);
+        return sendToClient(cp);
+    }
+
+    public boolean sendPlayerPoints(long clientId, int points) {
+        PointsPayload rp = new PointsPayload();
+        rp.setPoints(points);
+        rp.setClientId(clientId);
+        return sendToClient(rp);
+    }
+
     public boolean sendResetTurnStatus() {
         ReadyPayload rp = new ReadyPayload();
         rp.setPayloadType(PayloadType.RESET_TURN);
@@ -247,6 +273,33 @@ public class ServerThread extends BaseServerThread {
                     sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do a turn");
                 }
                 break;
+            case PLACE:
+                try {
+                    CoordPayload cp = (CoordPayload) incoming; // yaw4 12/11, processing coordinate payload for placing and then placing ship in gameroom
+                    ((GameRoom) currentRoom).handlePlaceAction(this, cp.getX(), cp.getY());
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "placed ship on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to place ships");
+                }
+                break;
+            case ATTACK:
+                try {
+                    CoordPayload attcp = (CoordPayload) incoming; // yaw4 12/11, processing coordinate payload for attacking and then attack ship in gameroom
+                    ((GameRoom) currentRoom).handleAttackAction(this, attcp.getX(), attcp.getY());
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "attacked ship on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to attack ships");
+                }
+                break;
+            case SKIP:
+                try {
+                    Payload skippl = (Payload) incoming; // yaw4 12/11, processing skip payload for skipping
+                    ((GameRoom) currentRoom).handleSkipAction(this);
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "skipped turn on ServerThread");
+                } catch (Exception e) {
+                    sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to skip your turn");
+                }
+                break;
             default:
                 LoggerUtil.INSTANCE.warning(TextFX.colorize("Unknown payload type received", Color.RED));
                 break;
@@ -254,6 +307,26 @@ public class ServerThread extends BaseServerThread {
     }
 
     // limited user data exposer
+    protected int getGamePoints()
+    {
+        return this.user.getGamePoints();
+    }
+
+    protected void addGamePoints(int points)
+    {
+        this.user.addGamePoints(points);
+    }
+
+    protected boolean placedAllShips() // added yaw4 
+    {
+        return this.user.placedAllShips();
+    }
+
+    protected void setPlacedShip() // added yaw4
+    {
+        this.user.setPlacedShip();
+    }
+
     protected boolean isReady() {
         return this.user.isReady();
     }

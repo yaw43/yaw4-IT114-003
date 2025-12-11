@@ -14,6 +14,9 @@ import Project.Exceptions.NotPlayersTurnException;
 import Project.Exceptions.NotReadyException;
 import Project.Exceptions.PhaseMismatchException;
 import Project.Exceptions.PlayerNotFoundException;
+import Project.Common.Grid;
+import Project.Common.TextFX;
+import Project.Common.TextFX.Color;
 
 public class GameRoom extends BaseGameRoom {
 
@@ -25,6 +28,7 @@ public class GameRoom extends BaseGameRoom {
     private List<ServerThread> turnOrder = new ArrayList<>();
     private long currentTurnClientId = Constants.DEFAULT_CLIENT_ID;
     private int round = 0;
+    private Grid grid = new Grid(); // yaw4 12/11, used to init grid on server
 
     public GameRoom(String name) {
         super(name);
@@ -34,9 +38,12 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onClientAdded(ServerThread sp) {
         // sync GameRoom state to new client
-        syncCurrentPhase(sp);
+        syncCurrentPhase(sp);  // yaw4 12/10 used to sync phase,ready,turn,points to clients added
         syncReadyStatus(sp);
         syncTurnStatus(sp);
+         if (currentPhase != Phase.READY) {
+            syncPlayerPoints(sp);
+        }
     }
 
     /** {@inheritDoc} */
@@ -48,7 +55,7 @@ public class GameRoom extends BaseGameRoom {
         long removedClient = sp.getClientId();
         turnOrder.removeIf(player -> player.getClientId() == sp.getClientId());
         if (clientsInRoom.isEmpty()) {
-            resetReadyTimer();
+            resetReadyTimer(); // yaw4 12/10 used for editing turn orders and status depending on if clients leave
             resetTurnTimer();
             resetRoundTimer();
             onSessionEnd();
@@ -71,7 +78,7 @@ public class GameRoom extends BaseGameRoom {
     }
 
     private void startTurnTimer() {
-        turnTimer = new TimedEvent(30, () -> onTurnEnd());
+        turnTimer = new TimedEvent(60, () -> onTurnEnd());
         turnTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
     }
 
@@ -89,10 +96,15 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onSessionStart() {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
-        changePhase(Phase.IN_PROGRESS);
-        currentTurnClientId = Constants.DEFAULT_CLIENT_ID;
+        changePhase(Phase.PLACE);
+
+        LoggerUtil.INSTANCE.info("onSessionStart() attack stuff");
+        currentTurnClientId = Constants.DEFAULT_CLIENT_ID; // added for phase based turn 
         setTurnOrder();
+
         round = 0;
+        grid.generate(5,5, true); // yaw4 12/10 used to generate grid and start turn order and game logic when game starts
+        LoggerUtil.INSTANCE.info(TextFX.colorize("Grid generated: " + grid, Color.PURPLE));
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
     }
@@ -101,9 +113,22 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onRoundStart() {
         LoggerUtil.INSTANCE.info("onRoundStart() start");
-        resetRoundTimer();
-        resetTurnStatus();
-        round++;
+
+        if(currentPhase == Phase.PLACE && round >= 1) // yaw4 12/10 checks to see if phase is place and round is 1 or higher, 
+        {                                               // it then changes the phase to attack and if not it just increases round and adjusts timer/status
+            resetRoundTimer();
+            resetTurnStatus();
+            LoggerUtil.INSTANCE.info("Changing phase to attack.");
+            changePhase(Phase.ATTACK);
+        }
+        else
+        {
+            LoggerUtil.INSTANCE.info("OnRoundStart not attack stuff");
+            resetRoundTimer();
+            resetTurnStatus();
+            round++;
+        }
+        
         relay(null, String.format("Round %d has started", round));
         // startRoundTimer(); Round timers aren't needed for turns
         // if you do decide to use it, ensure it's reasonable and based on the number of
@@ -117,14 +142,18 @@ public class GameRoom extends BaseGameRoom {
     protected void onTurnStart() {
         LoggerUtil.INSTANCE.info("onTurnStart() start");
         resetTurnTimer();
-        try {
-            ServerThread currentPlayer = getNextPlayer();
-            relay(null, String.format("It's %s's turn", currentPlayer.getDisplayName()));
-        } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
+        if(currentPhase == Phase.ATTACK) // yaw4 12/10 checks to see if phase is attack, it then uses round robin to select next player
+        {
+            LoggerUtil.INSTANCE.info("onTurnStart attack stuff");
+            try {
+                ServerThread currentPlayer = getNextPlayer();
+                relay(null, String.format("It's %s's turn", currentPlayer.getDisplayName()));
+            } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
 
-            e.printStackTrace();
+                e.printStackTrace();
+            }
         }
-        startTurnTimer();
+        startTurnTimer(); 
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -135,17 +164,27 @@ public class GameRoom extends BaseGameRoom {
     protected void onTurnEnd() {
         LoggerUtil.INSTANCE.info("onTurnEnd() start");
         resetTurnTimer(); // reset timer if turn ended without the time expiring
-        try {
-            // optionally can use checkAllTookTurn();
-            if (isLastPlayer()) {
-                // if the current player is the last player in the turn order, end the round
-                onRoundEnd();
-            } else {
-                onTurnStart();
-            }
-        } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
+        if(currentPhase == Phase.ATTACK) //yaw4 12/10 checks to see if phase is "ATTACK" then looks to see if round should end or do next turn
+        {
+            try {
+                // optionally can use checkAllTookTurn();
+                LoggerUtil.INSTANCE.info("onTurnEnd attack stuff");
+                if (isLastPlayer()) {
+                    // if the current player is the last player in the turn order, end the round
+                    onRoundEnd();
+                } else {
+                    onTurnStart();
+                }
+            } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
 
-            e.printStackTrace();
+                e.printStackTrace();
+            }
+            
+        }
+        else
+        {
+            onRoundEnd();
+            LoggerUtil.INSTANCE.info("onTurnEnd() ending placing phase");
         }
         LoggerUtil.INSTANCE.info("onTurnEnd() end");
     }
@@ -158,23 +197,30 @@ public class GameRoom extends BaseGameRoom {
         LoggerUtil.INSTANCE.info("onRoundEnd() start");
         resetRoundTimer(); // reset timer if round ended without the time expiring
 
-        LoggerUtil.INSTANCE.info("onRoundEnd() end");
+        LoggerUtil.INSTANCE.info(TextFX.colorize("Grid status: " + grid, Color.PURPLE));  // yaw4 12/11, resets the round timer and then 
+        LoggerUtil.INSTANCE.info("onRoundEnd() end");                            // shows status of grid on server
         if (round >= 3) {
             onSessionEnd();
         } else {
-            onRoundStart();
+          onRoundStart();
         }
+       onRoundStart();
     }
 
     /** {@inheritDoc} */
     @Override
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
-        turnOrder.clear();
         currentTurnClientId = Constants.DEFAULT_CLIENT_ID;
-        resetReadyStatus();
-        resetTurnStatus();
+        turnOrder.clear();
+        resetReadyStatus(); // yaw4 12/11, resets ready,turn status and turn timer
+        resetTurnStatus(); // it then changes phase back to ready
+        resetTurnTimer();
+        
+        grid.reset(); // added for yaw4 resets grid on server 
+
         changePhase(Phase.READY);
+        
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
     // end lifecycle methods
@@ -199,6 +245,31 @@ public class GameRoom extends BaseGameRoom {
         });
     }
 
+      // send/sync data to ServerThread(s) added for syncing points
+     private void syncPlayerPoints(ServerThread incomingClient) {
+        clientsInRoom.values().forEach(serverUser -> {
+            if (serverUser.getClientId() != incomingClient.getClientId()) {
+                boolean failedToSync = !incomingClient.sendPlayerPoints(serverUser.getClientId(),
+                        serverUser.getGamePoints());
+                if (failedToSync) {
+                    LoggerUtil.INSTANCE.warning(
+                            String.format("Removing disconnected %s from list", serverUser.getDisplayName()));
+                    disconnect(serverUser);
+                }
+            }
+        });
+    }
+
+    private void sendPlayerPoints(ServerThread sp) {
+        clientsInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !spInRoom.sendPlayerPoints(sp.getClientId(), sp.getGamePoints());
+            if (failedToSend) {
+                removeClient(spInRoom);
+            }
+            return failedToSend;
+        });
+    } 
+
     private void syncTurnStatus(ServerThread incomingClient) {
         clientsInRoom.values().forEach(serverUser -> {
             if (serverUser.getClientId() != incomingClient.getClientId()) {
@@ -211,6 +282,14 @@ public class GameRoom extends BaseGameRoom {
                 }
             }
         });
+    }
+
+    private void sendPlaceShipUpdate(ServerThread client, int x, int y) // used to send data of placing ship to client
+    {
+        boolean failedToSend = !client.sendPlaceShipUpdate(client.getClientId(), x, y);
+        if (failedToSend) {
+                removeClient(client);
+        }
     }
 
     // end send data to ServerThread(s)
@@ -227,7 +306,7 @@ public class GameRoom extends BaseGameRoom {
      * Sets `turnOrder` to a shuffled list of players who are ready.
      */
     private void setTurnOrder() {
-        turnOrder.clear();
+       // turnOrder.clear();
         turnOrder = clientsInRoom.values().stream().filter(ServerThread::isReady).collect(Collectors.toList());
         Collections.shuffle(turnOrder);
     }
@@ -285,6 +364,17 @@ public class GameRoom extends BaseGameRoom {
         return turnOrder.indexOf(getCurrentPlayer()) == (turnOrder.size() - 1);
     }
 
+    private void checkTookTurn(ServerThread currentUser) throws NotPlayersTurnException {  // adding here for phase place
+        if (currentUser.didTakeTurn()) {
+            throw new NotPlayersTurnException("You have already taken your turn this round");
+        }
+    }
+
+    private void checkCoordinateBounds(int x, int y) 
+    {
+
+    }  // adding here for phase place
+
     private void checkAllTookTurn() {
         int numReady = clientsInRoom.values().stream()
                 .filter(sp -> sp.isReady())
@@ -310,6 +400,140 @@ public class GameRoom extends BaseGameRoom {
     // end check methods
 
     // receive data from ServerThread (GameRoom specific)
+    protected void handleSkipAction(ServerThread currentUser) // yaw4 12/11, called to skip on serverside, called by serverThread
+    {
+        try
+        {
+            checkPlayerInRoom(currentUser);
+            checkCurrentPhase(currentUser, Phase.ATTACK);
+            checkIsReady(currentUser);
+            checkTookTurn(currentUser);
+
+            currentUser.setTookTurn(true);
+            sendTurnStatus(currentUser, currentUser.didTakeTurn());
+            onTurnEnd();
+        }
+        catch (NotPlayersTurnException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
+            LoggerUtil.INSTANCE.severe("handleSkipAction exception", e);
+        } catch (NotReadyException e) {
+            // The check method already informs the currentUser
+            LoggerUtil.INSTANCE.severe("handleSkipAction exception", e);
+        } catch (PlayerNotFoundException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do the ready check");
+            LoggerUtil.INSTANCE.severe("handleSkipAction exception", e);
+        } catch (PhaseMismatchException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "You can only skip during the ATTACK phase");
+            LoggerUtil.INSTANCE.severe("handleSkipAction exception", e);
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("handleSkipAction exception", e);
+        }
+    }
+
+    //attempting attack action code yaw4 
+    protected void handleAttackAction(ServerThread currentUser, int x, int y) // yaw4 12/11, called to attack ship on serverside grid and called by serverThread
+    {
+        try
+        {
+            checkPlayerInRoom(currentUser);
+            checkCurrentPhase(currentUser, Phase.ATTACK);
+            checkIsReady(currentUser);
+            checkCurrentPlayer(currentUser.getClientId());
+            checkTookTurn(currentUser);
+            checkCoordinateBounds(x, y); 
+
+            if (currentUser.didTakeTurn()) {
+                currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You have already attacked this round.");
+                return;
+            }
+            else
+            {
+              if(grid.attackShip(x,y) && grid.cellStatus(x,y) == 1) // yaw4 12/11, used to attack ship in grid when attack command
+                {
+                    currentUser.addGamePoints(grid.getLastShips(x, y));
+                    currentUser.sendAttackShipUpdate(currentUser.getClientId(), x, y); // sends attack command to client
+                    relay(null, String.format("%s hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
+                    LoggerUtil.INSTANCE.warning("ship successfully attacked and user's points now: " + currentUser.getGamePoints() + " Client ID:" + currentUser.getClientId());
+                }
+                else 
+                {
+                    relay(null, String.format("%s missed and hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
+                    LoggerUtil.INSTANCE.info("ship failed attack and user's points now " + currentUser.getGamePoints());
+                } // yaw4 attack ship logic to be added here
+            }
+            if(currentUser.getGamePoints() >= 6)
+            {
+                onSessionEnd();
+                //resetTurnTimer();
+            }
+            currentUser.setTookTurn(true);
+            sendTurnStatus(currentUser, currentUser.didTakeTurn());
+            onTurnEnd();
+        }
+        catch (NotPlayersTurnException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
+            LoggerUtil.INSTANCE.severe("handleAttackAction exception", e);
+        } catch (NotReadyException e) {
+            // The check method already informs the currentUser
+            LoggerUtil.INSTANCE.severe("handleAttackAction exception", e);
+        } catch (PlayerNotFoundException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do the ready check");
+            LoggerUtil.INSTANCE.severe("handleAttackAction exception", e);
+        } catch (PhaseMismatchException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "You can only attack during the ATTACK phase");
+            LoggerUtil.INSTANCE.severe("handleAttackAction exception", e);
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("handleAttackAction exception", e);
+        }
+    }
+
+    // attempting place action code yaw4
+    protected void handlePlaceAction(ServerThread currentUser, int x, int y) // yaw4 12/11, called to place ship on serverside grid and called by serverThread
+    {
+        try
+        {
+            checkPlayerInRoom(currentUser);
+            checkCurrentPhase(currentUser, Phase.PLACE);
+            checkIsReady(currentUser);
+            checkCoordinateBounds(x, y); 
+            
+            currentUser.setPlacedShip();
+
+            if (currentUser.didTakeTurn() && currentUser.placedAllShips()) {
+                currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You have placed your ships this game");
+                return;
+            }
+            else
+            {
+                grid.placeShip(x, y, currentTurnClientId); // yaw4 12/11, used to place ship on grid 
+                currentUser.sendPlaceShipUpdate(currentUser.getClientId(), x, y);
+            }
+            if(currentUser.placedAllShips()) // checks to see if user has placed all ships before setting turn true yaw4
+            {
+                currentUser.setTookTurn(true);
+                sendTurnStatus(currentUser, currentUser.didTakeTurn());
+            }
+            checkAllTookTurn();
+        }
+        catch (NotPlayersTurnException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
+            LoggerUtil.INSTANCE.severe("handlePlaceAction exception", e);
+        } catch (NotReadyException e) {
+            // The check method already informs the currentUser
+            LoggerUtil.INSTANCE.severe("handlePlaceAction exception", e);
+        } catch (PlayerNotFoundException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID, "You must be in a GameRoom to do the ready check");
+            LoggerUtil.INSTANCE.severe("handlePlaceAction exception", e);
+        } catch (PhaseMismatchException e) {
+            currentUser.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "You can only place during the PLACE phase");
+            LoggerUtil.INSTANCE.severe("handlePlaceAction exception", e);
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("handlePlaceAction exception", e);
+        }
+    }
 
     /**
      * Handles the turn action from the client.

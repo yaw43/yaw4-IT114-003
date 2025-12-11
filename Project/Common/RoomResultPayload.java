@@ -14,7 +14,7 @@ public class RoomResultPayload extends Payload {
         return rooms;
     }
 
-    public void setRooms(List<String> rooms) {
+    public void setRooms(List<String> rooms) { // yaw4 12/10 payload used to send information about rooms 
         this.rooms = rooms;
     }
 

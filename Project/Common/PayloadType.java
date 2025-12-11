@@ -24,4 +24,9 @@ public enum PayloadType {
        SYNC_TURN, // quiet version of TURN, used to sync existing turn status of clients in a
                   // GameRoom
        RESET_TURN, // trigger to tell client to reset their local list turn status
+       COORD, // payload for sending coordinates
+       PLACE,
+       ATTACK, 
+       SYNC_POINTS, // payload for syncing points
+       SKIP, // used for skipping command
 }

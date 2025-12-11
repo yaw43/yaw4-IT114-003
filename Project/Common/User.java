@@ -5,6 +5,41 @@ public class User {
     private String clientName;
     private boolean isReady = false;
     private boolean tookTurn = false;
+    private boolean isEliminated = false; // for milestone3 I think?
+    private final int maxShips = 5;
+    private int placedShips = 0; 
+    private int gamePoints = 0; // correct way?
+
+    
+  // protected boolean isEliminated() //yaw4 added 
+   // {
+        //return this.user.isEliminated();
+   // }
+
+   public boolean isSpectator()
+   {
+        return !isReady();
+   }
+
+   public int getGamePoints()
+   {
+        return gamePoints; 
+   }
+
+   public void addGamePoints(int points) // is this correct?
+   {
+        this.gamePoints += points; 
+   }
+
+    public void setPlacedShip() // increases placed ship when ship gets placed yaw4
+    {
+        placedShips++;
+    }
+
+    public boolean placedAllShips() // checks to see if placed ships are equal to max allowed ships yaw4
+    {
+        return placedShips >= maxShips;
+    }
 
     /**
      * @return the clientId

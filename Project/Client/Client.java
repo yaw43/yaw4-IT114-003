@@ -12,9 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import Project.Common.Cell;
 import Project.Common.Command;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.CoordPayload;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
@@ -25,6 +27,8 @@ import Project.Common.RoomResultPayload;
 import Project.Common.TextFX;
 import Project.Common.User;
 import Project.Common.TextFX.Color;
+
+import Project.Common.Grid;
 
 /**
  * Demoing bi-directional communication between client and server in a
@@ -52,6 +56,7 @@ public enum Client {
     private final ConcurrentHashMap<Long, User> knownClients = new ConcurrentHashMap<Long, User>();
     private User myUser = new User();
     private Phase currentPhase = Phase.READY;
+    private Grid grid = new Grid(); // added grid for client, yaw4 12/11 init grid
 
     private void error(String message) {
         LoggerUtil.INSTANCE.severe(TextFX.colorize(String.format("%s", message), Color.RED));
@@ -218,11 +223,93 @@ public enum Client {
                 sendDoTurn(text);
                 wasCommand = true;
             }
+            else if(text.startsWith(Command.PLACE.command))
+            {
+                text = text.replace(Command.PLACE.command, "").trim(); // yaw4 12/11, used for when client does place command and it registers command
+                String[] coords = text.split(",");                          // then triggers send place
+                if (coords.length != 2) {
+                    LoggerUtil.INSTANCE.warning(TextFX.colorize("Usage: /place <x>,<y>", Color.RED));
+                    return true;
+                }
+                try {
+                    int x = Integer.parseInt(coords[0].trim());
+                    int y = Integer.parseInt(coords[1].trim());
+                    // check if coordinates are within bounds
+                    if (grid.isValidCoordinate(x, y)) {
+                        LoggerUtil.INSTANCE
+                                .info(TextFX.colorize(String.format("Placing at (%d, %d)", x, y), Color.GREEN));
+                        sendPlace(x, y);
+                    } else {
+                        LoggerUtil.INSTANCE.warning(TextFX.colorize("Coordinates out of bounds", Color.RED));
+                        LoggerUtil.INSTANCE.warning(TextFX.colorize("error in client trying to place at " + x + "," + y, Color.RED));
+                    }
+                } catch (NumberFormatException e) {
+                    LoggerUtil.INSTANCE
+                            .warning(TextFX.colorize("Coordinates must be integers. Usage: /place <x>,<y>", Color.RED));
+                    return true;
+                }
+                wasCommand = true;
+            }
+            else if(text.startsWith(Command.SKIP.command)) //yaw4 12/11, used for when client does skip command and it registeres command then triggers sendSkip
+            {
+                sendSkip();
+                wasCommand = true;
+            }
+            else if(text.startsWith(Command.ATTACK.command)) //yaw4 12/11, used for when client does attack command and it registeres command then triggers sendAttack
+            {
+                text = text.replace(Command.ATTACK.command, "").trim();
+                String[] coords = text.split(",");
+                if (coords.length != 2) {
+                    LoggerUtil.INSTANCE.warning(TextFX.colorize("Usage: /attack <x>,<y>", Color.RED));
+                    return true;
+                }
+                try {
+                    int x = Integer.parseInt(coords[0].trim());
+                    int y = Integer.parseInt(coords[1].trim());
+                    // check if coordinates are within bounds
+                    if (grid.isValidCoordinate(x, y)) {
+                        LoggerUtil.INSTANCE
+                                .info(TextFX.colorize(String.format("Attacking at (%d, %d)", x, y), Color.GREEN));
+                        sendAttack(x, y);
+                    } else {
+                        LoggerUtil.INSTANCE.warning(TextFX.colorize("Coordinates out of bounds", Color.RED));
+                        LoggerUtil.INSTANCE.warning(TextFX.colorize("error in client trying to attack at " + x + "," + y, Color.RED));
+                    }
+                } catch (NumberFormatException e) {
+                    LoggerUtil.INSTANCE
+                            .warning(TextFX.colorize("Coordinates must be integers. Usage: /attack <x>,<y>", Color.RED));
+                    return true;
+                }
+                wasCommand = true;
+            }
         }
         return wasCommand;
     }
 
     // Start Send*() methods
+
+    private void sendAttack(int x, int y) throws IOException // added yaw4 12/11, sends coordinate payload for attacking ship
+    {
+        Payload attcp = new CoordPayload(x,y);
+        attcp.setPayloadType(PayloadType.ATTACK);
+        sendToServer(attcp);
+    }
+
+    private void sendSkip() throws IOException  // added yaw4 12/11, sends skip payload
+    {
+        Payload payload = new Payload();
+        payload.setPayloadType(PayloadType.SKIP);
+        sendToServer(payload);
+    }
+
+    private void sendPlace(int x, int y) throws IOException // added yaw4 12/11, sends coordinate payload for placing ship
+    {
+        CoordPayload cp = new CoordPayload(x, y);
+        cp.setPayloadType(PayloadType.PLACE);
+        sendToServer(cp);
+    }
+
+
     private void sendDoTurn(String text) throws IOException {
         // NOTE for now using ReadyPayload as it has the necessary properties
         // An actual turn may include other data for your project
@@ -430,6 +517,12 @@ public enum Client {
                 // note no data necessary as this is just a trigger
                 processResetTurn();
                 break;
+            case PayloadType.PLACE: // for client recieving place update
+                processPlaceCommand(payload);
+                break;
+            case PayloadType.ATTACK:
+                processAttackCommand(payload);
+                break;
             default:
                 LoggerUtil.INSTANCE.warning(TextFX.colorize("Unhandled payload type", Color.YELLOW));
                 break;
@@ -438,6 +531,46 @@ public enum Client {
     }
 
     // Start process*() methods
+    private void processAttackCommand(Payload payload) // yaw4 12/11, used to process attacking on clientside 
+    {
+        if (!(payload instanceof CoordPayload)) {
+            error("Invalid payload subclass for processAttackCommand");
+            return;
+        }
+
+        CoordPayload cp = (CoordPayload) payload;
+
+        Cell cell = grid.getCell(cp.getX(), cp.getY());
+        if (cell == null) {
+            LoggerUtil.INSTANCE
+                    .warning(String.format("Cell at (%d, %d) is null, cannot set fish count", cp.getX(), cp.getY()));
+            return;
+        }
+        cell.attackShip();
+        LoggerUtil.INSTANCE.info(TextFX.colorize(String.format("Current grid: " + grid), Color.PURPLE)); 
+
+    }
+
+    private void processPlaceCommand(Payload payload) // yaw4 12/11, used to process placing on clientside 
+    {
+        if (!(payload instanceof CoordPayload)) {
+            error("Invalid payload subclass for processPlaceCommand");
+            return;
+        }
+
+        CoordPayload cp = (CoordPayload) payload;
+
+        Cell cell = grid.getCell(cp.getX(), cp.getY());
+        if (cell == null) {
+            LoggerUtil.INSTANCE
+                    .warning(String.format("Cell at (%d, %d) is null, cannot set fish count", cp.getX(), cp.getY()));
+            return;
+        }
+
+        cell.placeShip(cp.getClientId());
+        LoggerUtil.INSTANCE.info(TextFX.colorize(String.format("Current grid: " + grid), Color.PURPLE));
+    }
+
     private void processResetTurn() {
         knownClients.values().forEach(cp -> cp.setTookTurn(false));
         System.out.println("Turn status reset for everyone");
@@ -455,7 +588,7 @@ public enum Client {
                     rp.getClientId()));
             return;
         }
-        User cp = knownClients.get(rp.getClientId());
+        User cp = knownClients.get(rp.getClientId()); 
         cp.setTookTurn(rp.isReady());
         if (payload.getPayloadType() != PayloadType.SYNC_TURN) {
             String message = String.format("%s %s their turn", cp.getDisplayName(),
@@ -468,6 +601,15 @@ public enum Client {
     private void processPhase(Payload payload) {
         currentPhase = Enum.valueOf(Phase.class, payload.getMessage());
         System.out.println(TextFX.colorize("Current phase is " + currentPhase.name(), Color.YELLOW));
+
+        if(currentPhase == Phase.READY) // yaw4 12/11, when ready it resets the grid and when phase place, it generates grid
+        {
+            grid.reset();
+        }
+        else if(currentPhase == Phase.PLACE)
+        {
+            grid.generate(5,5, false);
+        }
     }
 
     private void processResetReady() {
