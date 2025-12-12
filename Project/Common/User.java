@@ -9,9 +9,10 @@ public class User {
     private final int maxShips = 5;
     private int placedShips = 0; 
     private int gamePoints = 0; // correct way?
+    private int points = 0;
+    private int currency = 0; 
 
-    
-  // protected boolean isEliminated() //yaw4 added 
+    // protected boolean isEliminated() //yaw4 added 
    // {
         //return this.user.isEliminated();
    // }
@@ -21,12 +22,36 @@ public class User {
         return !isReady();
    }
 
-   public int getGamePoints()
-   {
-        return gamePoints; 
-   }
+    /**
+     * @return the points
+     */
+    public int getCurrency() {
+        return currency; // yaw4 12/11, used to get and set currency between these 2 methods
+    }
 
-   public void addGamePoints(int points) // is this correct?
+    /**
+     * @param points the points to set
+     */
+    public void addCurrency(int currency) {
+        this.currency += currency;
+
+    }
+
+    /**
+     * @return the points
+     */
+    public int getPoints() {
+        return points;
+    }
+
+    /**
+     * @param points the points to set
+     */
+    public void setPoints(int points) {
+        this.points = points;
+
+    }
+    public void addGamePoints(int points) // is this correct?
    {
         this.gamePoints += points; 
    }
@@ -86,6 +111,7 @@ public class User {
         this.clientName = null;
         this.isReady = false;
         this.tookTurn = false;
+        this.points = 0;
     }
 
     /**
