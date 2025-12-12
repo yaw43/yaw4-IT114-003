@@ -164,7 +164,7 @@ public class GameRoom extends BaseGameRoom {
         try {
             ServerThread currentPlayer = getNextPlayer();
             // relay(null, String.format("It's %s's turn", currentPlayer.getDisplayName()));
-            sendGameEvent(String.format("It's %s's turn", currentPlayer.getDisplayName()));
+            sendGameEvent(String.format("It's %s's turn", currentPlayer.getDisplayName())); // yaw4 12/11, sends game event in chat
         } catch (MissingCurrentPlayerException | PlayerNotFoundException e) {
 
             e.printStackTrace();
@@ -322,7 +322,7 @@ public class GameRoom extends BaseGameRoom {
     /**
      * Sets `turnOrder` to a shuffled list of players who are ready.
      */
-    private void setTurnOrder() {
+    private void setTurnOrder() { //yaw4 12/11, sets turn orders of users in room
         turnOrder.clear();
         turnOrder = clientsInRoom.values().stream().filter(ServerThread::isReady).collect(Collectors.toList());
         Collections.shuffle(turnOrder);
@@ -472,10 +472,10 @@ public class GameRoom extends BaseGameRoom {
               if(grid.attackShip(x,y) && grid.cellStatus(x,y) == 1) // yaw4 12/11, used to attack ship in grid when attack command
                 {
                     currentUser.addGamePoints(grid.getLastShips(x, y));
-                    currentUser.addCurrency(10);
+                    currentUser.addCurrency(10); // yaw4 12/11, used to give currency to user 
                     currentUser.sendAttackShipUpdate(currentUser.getClientId(), x, y); // sends attack command to client
-                    relay(null, String.format("%s hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName()));
-                    relay(null, String.format("%s got 10 coins for hitting ships!", currentUser.getDisplayName()));
+                    relay(null, String.format("%s hit " + grid.getLastShips(x,y) + " ships!", currentUser.getDisplayName())); 
+                    relay(null, String.format("%s got 10 coins for hitting ships!", currentUser.getDisplayName()));   // yaw4 12/11, code to show coins given to user
                     LoggerUtil.INSTANCE.warning("ship successfully attacked and user's points now: " + currentUser.getPoints() + " Client ID:" + currentUser.getClientId());
                 }
                 else 

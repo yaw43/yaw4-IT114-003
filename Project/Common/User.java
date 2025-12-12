@@ -26,7 +26,7 @@ public class User {
      * @return the points
      */
     public int getCurrency() {
-        return currency;
+        return currency; // yaw4 12/11, used to get and set currency between these 2 methods
     }
 
     /**
